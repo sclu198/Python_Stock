@@ -94,8 +94,5 @@ s.enter(1, 0, stock_crawler, argument=(stock_list,))
 s.run()
 
 
-# In[ ]:
-
-
 
 
