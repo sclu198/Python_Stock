@@ -13,7 +13,6 @@ import logging
 import sys
 from datetime import datetime
 
-from .analysis import PostAnalyzer
 from .config import Config
 from .console import check_python_version, setup_console
 from .notify import NotifyError, TelegramNotifier, build_notifier
@@ -100,6 +99,13 @@ def main(argv: list[str] | None = None) -> int:
     except RegistryError as exc:
         log.warning("台股名錄無法使用，股票代號將只依模型判斷：%s", exc)
         registry = None
+
+    try:
+        from .analysis import PostAnalyzer
+    except ImportError as exc:
+        log.error("載入分析模組失敗（anthropic 套件沒裝好？）：%s", exc)
+        log.error("請在專案目錄執行：pip install -r requirements.txt")
+        return 2
 
     analyses = PostAnalyzer(config, registry).analyze_all(posts)
     messages = build_messages(
