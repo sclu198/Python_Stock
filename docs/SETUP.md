@@ -16,29 +16,40 @@ python --version
 版本太舊的話到 <https://www.python.org/downloads/> 安裝新版，
 Windows 安裝時記得勾選 **Add python.exe to PATH**。
 
-Windows 想從命令列直接裝，也可以用 winget：
-
-```cmd
-winget install -e --id Python.Python.3.12
-```
-
-裝完**關掉命令提示字元再重開**，然後用 `py -0` 看實際裝了哪些版本：
+**先確認電腦上已經有哪些版本**，再決定要不要安裝：
 
 ```cmd
 py -0
 ```
 
-有兩套以上 Python 時，與其改 PATH，不如用 Python launcher 指定版本
-（把下面所有 `python` 換成 `py -3.12`），這樣不會動到系統設定：
+它會列出所有偵測到的 Python，標著 `*` 的是 `py` 的預設版本，例如：
 
-```cmd
-py -3.12 --version
-py -3.12 -m pip install -r requirements.txt
-py -3.12 -m x_stock_tracker --check
+```
+-V:3.14 *        Python 3.14 (64-bit)
+-V:3.9           Python 3.9 (64-bit)
 ```
 
-> `py -3.12` 回報 `No suitable Python runtime found`，代表那個版本**沒有安裝**，
-> 不是 PATH 設錯。先用 `py -0` 確認清單，再安裝缺的版本。
+**清單裡只要有 3.10 以上的版本就不必安裝**，直接用 Python launcher 指定它即可
+（把下面的 `3.14` 換成你清單裡的版本號）：
+
+```cmd
+py -3.14 --version
+py -3.14 -m pip install -r requirements.txt
+py -3.14 -m x_stock_tracker --check
+```
+
+有多套 Python 時，用 `py -<版本>` 指定比改 PATH 乾淨——不會動到系統設定，
+也不會影響其他還在用舊版的專案。
+
+清單裡沒有 3.10 以上的版本才需要安裝，到
+<https://www.python.org/downloads/> 下載，或用 winget：
+
+```cmd
+winget install -e --id Python.Python.3.13
+```
+
+> `py -3.11` 回報 `No suitable Python runtime found`，通常只是**你裝的不是 3.11**，
+> 不是 PATH 設錯。先看 `py -0` 的清單，用清單上實際有的版本號。
 
 只想先確認 Telegram 通不通、還不想動 Python 版本的話，
 `pip install requests` 之後就能單獨執行 `scripts/telegram_get_chat_id.py`，
@@ -210,7 +221,7 @@ python -m x_stock_tracker
 | `UnicodeDecodeError: 'cp950' codec can't decode byte`（跑 pip 時） | pip 太舊。先 `python -m pip install --upgrade pip` 再重跑 |
 | `ModuleNotFoundError: No module named 'requests'` | 上一步的 `pip install -r requirements.txt` 沒成功，先把它跑過 |
 | `Could not find a version that satisfies the requirement anthropic` 且提到 `require a different python version` | Python 版本低於 3.10。安裝 Python 3.11+ 後改用 `py -3.11 -m pip install -r requirements.txt` |
-| `py -3.12`：`No suitable Python runtime found` | 那個版本沒安裝（不是 PATH 問題）。`py -0` 看已安裝清單，再裝 Python 3.12 |
+| `py -3.x`：`No suitable Python runtime found` | 那個版本沒安裝（不是 PATH 問題）。先跑 `py -0` 看清單，改用上面實際有的版本號 |
 | `環境不符：這個程式需要 Python 3.10 以上` | 同上，執行時用到的仍是舊版 Python，改用 `py -3.11 -m x_stock_tracker` |
 | `Telegram 回傳「chat not found」` | chat id 填錯，或還沒對 bot 按過 Start |
 | `TELEGRAM_CHAT_ID 格式不對` | 填成 `@SCLU0215` 了，私訊要用數字 chat id |
