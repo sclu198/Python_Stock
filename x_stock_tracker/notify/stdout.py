@@ -7,6 +7,7 @@ from .base import Notifier
 
 class StdoutNotifier(Notifier):
     name = "stdout"
+    max_message_chars = 3900
 
     def send(self, messages: list[str]) -> None:
         for index, message in enumerate(messages, 1):

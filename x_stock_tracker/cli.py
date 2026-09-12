@@ -1,7 +1,7 @@
 """每日追蹤流程的進入點。
 
 用法：
-    python -m x_stock_tracker              # 正式執行，分析後推到 LINE
+    python -m x_stock_tracker              # 正式執行，分析後推到 Telegram
     python -m x_stock_tracker --dry-run    # 只印在終端機，不推播也不更新狀態
     python -m x_stock_tracker --check      # 檢查設定與各項連線
 """
@@ -15,7 +15,7 @@ from datetime import datetime
 
 from .analysis import PostAnalyzer
 from .config import Config
-from .notify import NotifyError, build_notifier
+from .notify import NotifyError, TelegramNotifier, build_notifier
 from .report import build_empty_message, build_messages
 from .sources import SourceError, build_source
 from .state import StateStore
@@ -26,7 +26,7 @@ log = logging.getLogger("x_stock_tracker")
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="x_stock_tracker", description="追蹤 X 帳號貼文，整理成投資摘要推播到 LINE"
+        prog="x_stock_tracker", description="追蹤 X 帳號貼文，整理成投資摘要推播到 Telegram"
     )
     parser.add_argument("--dry-run", action="store_true", help="只印出結果，不推播、不更新狀態")
     parser.add_argument("--since-id", default="", help="只抓這個貼文 ID 之後的貼文")
@@ -46,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     config = Config.from_env()
-    if args.dry_run and config.notifier == "line":
+    if args.dry_run and config.notifier != "stdout":
         config.notifier = "stdout"
 
     problems = config.validate()
@@ -95,7 +95,9 @@ def main(argv: list[str] | None = None) -> int:
         registry = None
 
     analyses = PostAnalyzer(config, registry).analyze_all(posts)
-    messages = build_messages(analyses, config.x_username, now)
+    messages = build_messages(
+        analyses, config.x_username, now, max_chars=notifier.max_message_chars
+    )
 
     try:
         notifier.send(messages)
@@ -136,7 +138,14 @@ def run_check(config: Config) -> int:
         log.error("❌ 貼文來源：%s", exc)
         ok = False
 
-    if config.notifier == "line":
+    if config.notifier == "telegram":
+        try:
+            bot_name = TelegramNotifier(config).verify()
+            log.info("✅ Telegram：token 有效，bot 是 @%s", bot_name)
+        except NotifyError as exc:
+            log.error("❌ Telegram：%s", exc)
+            ok = False
+    elif config.notifier == "line":
         if config.line_to_user_id.startswith("U"):
             log.info("✅ LINE 設定：userId 格式正確")
         else:

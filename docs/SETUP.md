@@ -1,6 +1,6 @@
 # 設定指南
 
-從零到每天早上收到 LINE 摘要，總共四步：**LINE → X → Claude → 排程**。
+從零到每天早上收到 Telegram 摘要，總共四步：**Telegram → X → Claude → 排程**。
 
 ---
 
@@ -17,42 +17,32 @@ cp .env.example .env      # Windows: copy .env.example .env
 
 ---
 
-## 1. LINE：建立 bot 並取得 userId
+## 1. Telegram：建立 bot 並取得 chat id
 
-### ⚠️ 先講一件重要的事
-
-**LINE 的推播 API 沒辦法用 LINE ID（`brucelu215` 這種）當收件人。**
-LINE ID 是給人在 App 裡搜尋好友用的，官方 API 完全不開放用它發訊息。
-程式要發訊息給你，只能用 `U` 開頭的 33 碼 **userId**，而且這個 userId
-是「某個 bot 眼中的你」——每個 bot 看到的 userId 都不一樣。
-
-另外，以前很多人用的 **LINE Notify 已經在 2025/3/31 停止服務**，
-所以現在正規做法是自己開一個 Messaging API bot，讓它發訊息給你。
+Telegram 沒有地區限制，設定也比 LINE 單純，只有兩個值要填。
 
 ### 步驟
 
-1. 到 [LINE Developers Console](https://developers.line.biz/console/) 用你的 LINE 帳號登入。
-2. 建立 **Provider**（隨便取名，例如 `bruce-personal`）。
-3. 在該 Provider 底下建立 **Messaging API channel**（頻道名稱例如「股市摘要小幫手」）。
-4. 進入該 channel 的 **Messaging API** 分頁：
-   - 找到 **Channel access token (long-lived)**，按 Issue 產生 → 填進 `.env` 的
-     `LINE_CHANNEL_ACCESS_TOKEN`
-   - 同一頁有 **Bot basic ID** 與 QR code，**用你的手機掃描把這個 bot 加為好友**
-     （沒加好友的話推播會被擋，回 403）
-   - 同一頁往下找 **Your user ID**（`U` 開頭那串）→ 填進 `.env` 的 `LINE_TO_USER_ID`
-5. 建議把同一頁的自動回覆訊息（Auto-reply messages）關掉，比較清爽。
+1. 在 Telegram 搜尋 **@BotFather**，送 `/newbot`。
+2. 依提示取兩個名字：顯示名稱（隨意，例如「股市摘要小幫手」）和
+   使用者名稱（必須以 `bot` 結尾，例如 `sclu_stock_digest_bot`）。
+3. BotFather 會給你一串 token（長得像 `123456789:AAH...`），
+   填進 `.env` 的 `TELEGRAM_BOT_TOKEN`。
+4. **在 Telegram 搜尋你剛建立的 bot，按下 Start**（或隨便傳一句話給它）。
+   這步不能跳過——Telegram 規定 bot 不能主動私訊沒互動過的人。
+5. 取得 chat id：
 
-### 如果 Console 上看不到 Your user ID
+   ```bash
+   python scripts/telegram_get_chat_id.py
+   ```
 
-用附的臨時 webhook 抓：
+   它會印出你的數字 chat id，填進 `.env` 的 `TELEGRAM_CHAT_ID`。
 
-```bash
-python scripts/line_get_user_id.py     # 監聽 8000 埠
-ngrok http 8000                        # 另開一個終端機
-```
+### ⚠️ chat id 不能用 @使用者名稱
 
-把 ngrok 給的 `https://xxxx.ngrok.io/webhook` 填進 Console 的 Webhook URL 並啟用，
-然後用手機對這個 bot 隨便傳一則訊息，userId 就會印在終端機上。
+你的 Telegram 帳號是 `@SCLU0215`，但**私訊不能拿使用者名稱當收件人**，
+Telegram Bot API 只接受數字 chat id（個人帳號是正數，群組是負數）。
+只有公開頻道才可以用 `@頻道名稱`。
 
 ### 驗證
 
@@ -60,7 +50,7 @@ ngrok http 8000                        # 另開一個終端機
 python -m x_stock_tracker --check
 ```
 
-看到 `✅ LINE 設定：userId 格式正確` 就對了。
+看到 `✅ Telegram：token 有效，bot 是 @你的bot名稱` 就對了。
 
 ---
 
@@ -116,7 +106,7 @@ ENABLE_WEB_SEARCH=false
 # 不推播，只把結果印在畫面上，也不會更新已讀狀態
 python -m x_stock_tracker --dry-run
 
-# 確認沒問題後正式跑一次（會真的發 LINE）
+# 確認沒問題後正式跑一次（會真的發 Telegram）
 python -m x_stock_tracker
 ```
 
@@ -136,8 +126,8 @@ python -m x_stock_tracker
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Claude API 金鑰 |
 | `X_BEARER_TOKEN` | X API Bearer Token |
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE channel access token |
-| `LINE_TO_USER_ID` | 你的 `U` 開頭 userId |
+| `TELEGRAM_BOT_TOKEN` | BotFather 給的 bot token |
+| `TELEGRAM_CHAT_ID` | 你的數字 chat id |
 
 用 RSS 方案的話，另外加 `X_RSS_URL` secret，並在 **Variables** 加
 `X_SOURCE=rss`。
@@ -168,8 +158,11 @@ python -m x_stock_tracker
 
 | 訊息 | 原因與處理 |
 | --- | --- |
-| `LINE 回傳 403：沒有推播權限` | 還沒把 bot 加為好友，或 userId 不屬於這個 channel |
-| `LINE_TO_USER_ID 看起來不是 userId` | 填成 LINE ID 了，要填 `U` 開頭那串 |
+| `Telegram 回傳「chat not found」` | chat id 填錯，或還沒對 bot 按過 Start |
+| `TELEGRAM_CHAT_ID 格式不對` | 填成 `@SCLU0215` 了，私訊要用數字 chat id |
+| `Telegram 回傳 401` | bot token 不對，跟 @BotFather 重新確認 |
+| `Telegram 回傳 403` | 你把 bot 封鎖了，解除封鎖即可 |
+| `目前沒有任何訊息`（取 chat id 時） | 先對 bot 傳一則訊息再跑一次腳本 |
 | `X API 回傳 403` | X API 方案不含讀取推文，升級方案或改用 `X_SOURCE=rss` |
 | `X API 回傳 429` | 超出流量限制，等額度重置後再跑 |
 | `台股名錄無法使用` | 證交所／櫃買中心的 API 暫時無法連線，程式會改用快取或只靠模型判斷 |
@@ -193,3 +186,21 @@ python -m x_stock_tracker
 如果哪天真的解析不到，執行 `python scripts/verify_open_data.py`，
 它會印出實際欄位名稱，再把名稱補進
 `x_stock_tracker/tw_market/registry.py` 最上面的 `*_KEYS` 常數即可。
+
+---
+
+## 附錄：改用 LINE 推播
+
+LINE 的 Messaging API 仍然保留在程式裡（`NOTIFIER=line`），如果之後區域限制
+解除或你另外開了日本帳號，可以切回去用：
+
+1. 到 [LINE Developers Console](https://developers.line.biz/console/) 建立
+   Provider 與 **Messaging API channel**。
+2. 在該 channel 的 Messaging API 分頁產生 **Channel access token**，填進
+   `LINE_CHANNEL_ACCESS_TOKEN`；用手機掃 QR code 把 bot 加為好友。
+3. 同一頁的 **Your user ID**（`U` 開頭）填進 `LINE_TO_USER_ID`；
+   看不到的話用 `python scripts/line_get_user_id.py` 搭配 ngrok 取得。
+4. `.env` 設 `NOTIFIER=line`。
+
+注意 LINE ID（`brucelu215` 這種）不能當推播對象，只能用 `U` 開頭的 userId；
+另外 LINE Notify 已於 2025/3/31 停止服務。

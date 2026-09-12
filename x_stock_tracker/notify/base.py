@@ -11,6 +11,8 @@ class NotifyError(RuntimeError):
 
 class Notifier(ABC):
     name = "base"
+    # 各家平台的單則訊息長度上限（以 UTF-16 單位計算，表情符號算兩個）
+    max_message_chars = 3900
 
     @abstractmethod
     def send(self, messages: list[str]) -> None:

@@ -5,7 +5,7 @@
 ## x_stock_tracker — X 貼文每日投資摘要
 
 每天自動抓取指定 X（Twitter）帳號（預設 [@qq_timmy](https://x.com/qq_timmy)）的新貼文，
-用 Claude 分析成投資備忘錄格式，再推播到自己的 LINE。
+用 Claude 分析成投資備忘錄格式，再推播到自己的 Telegram。
 
 每則貼文會整理出六件事：
 
@@ -45,21 +45,24 @@
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env     # 填入 X、Claude、LINE 三組金鑰
+cp .env.example .env     # 填入 X、Claude、Telegram 三組金鑰
 python -m x_stock_tracker --check      # 檢查設定與連線
 python -m x_stock_tracker --dry-run    # 試跑，只印在畫面上
-python -m x_stock_tracker              # 正式執行，推播到 LINE
+python -m x_stock_tracker              # 正式執行，推播到 Telegram
 ```
 
-完整設定步驟（含如何取得 LINE userId、X API 的方案限制）請看
+完整設定步驟（含如何取得 Telegram chat id、X API 的方案限制）請看
 **[docs/SETUP.md](docs/SETUP.md)**。
 
 兩件開始前要知道的事：
 
-- **LINE ID（`brucelu215` 這種）不能當推播對象。** LINE 官方 API 只接受
-  `U` 開頭的 userId，取得方式見設定指南。LINE Notify 已於 2025/3/31 停止服務。
+- **Telegram 的收件人不能用 @使用者名稱。** Bot API 私訊只接受數字 chat id，
+  而且你必須先對自己的 bot 按過 Start；執行
+  `python scripts/telegram_get_chat_id.py` 就會印出來。
 - **X 的免費 API 方案不能讀取推文**，需要 Basic 以上方案，或改用
   `X_SOURCE=rss` 走自架的 RSS 鏡像。
+
+推播管道用 `NOTIFIER` 切換：`telegram`（預設）、`line`、`stdout`（測試用）。
 
 ### 每天自動執行
 
@@ -80,7 +83,7 @@ python -m x_stock_tracker              # 正式執行，推播到 LINE
 ### 開發
 
 ```bash
-python -m unittest discover -s tests -t .   # 39 個測試，不需連網
+python -m unittest discover -s tests -t .   # 52 個測試，不需連網
 python scripts/verify_open_data.py          # 檢查三個開放資料 API 的欄位
 ```
 
@@ -92,8 +95,8 @@ x_stock_tracker/
   sources/          貼文來源（X API v2 / RSS 備援）
   tw_market/        台股名錄：下載、快取、公司名 → 代號查詢
   analysis/         Claude 分析 + 用名錄校正結果
-  report.py         排版成 LINE 訊息
-  notify/           LINE Messaging API 推播
+  report.py         排版成推播訊息
+  notify/           Telegram Bot API 推播（另含 LINE 備用管道）
 ```
 
 ## TW_Stock Crawler.py

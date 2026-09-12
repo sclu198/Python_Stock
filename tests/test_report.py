@@ -4,10 +4,12 @@ import unittest
 from datetime import datetime, timezone
 
 from x_stock_tracker.models import CompanyMention, Post, PostAnalysis
+from x_stock_tracker.notify.telegram import MAX_MESSAGE_CHARS as TELEGRAM_LIMIT
 from x_stock_tracker.report import (
     MAX_MESSAGE_CHARS,
     build_empty_message,
     build_messages,
+    text_length,
 )
 
 NOW = datetime(2026, 9, 12, 8, 0, tzinfo=timezone.utc)
@@ -78,13 +80,29 @@ class TestReport(unittest.TestCase):
         messages = build_messages(many, "qq_timmy", NOW)
         self.assertGreater(len(messages), 1)
         for message in messages:
-            self.assertLessEqual(len(message), MAX_MESSAGE_CHARS)
+            self.assertLessEqual(text_length(message), MAX_MESSAGE_CHARS)
+
+    def test_messages_fit_telegram_limit_counting_emoji_as_two(self):
+        # Telegram 的 4096 上限以 UTF-16 單位計算，表情符號算兩個
+        many = [make_analysis(companies=[TSMC, TSMC]) for _ in range(30)]
+        messages = build_messages(many, "qq_timmy", NOW, max_chars=TELEGRAM_LIMIT)
+        for message in messages:
+            self.assertLessEqual(text_length(message), TELEGRAM_LIMIT)
+            self.assertLessEqual(text_length(message), 4096)
+
+    def test_emoji_heavy_message_is_measured_in_utf16(self):
+        heavy = CompanyMention(company_name="🔺" * 3000, business_model_l3="🔺" * 3000)
+        messages = build_messages(
+            [make_analysis(companies=[heavy])], "qq_timmy", NOW, max_chars=TELEGRAM_LIMIT
+        )
+        for message in messages:
+            self.assertLessEqual(text_length(message), TELEGRAM_LIMIT)
 
     def test_single_huge_post_is_split(self):
         giant = CompanyMention(company_name="巨型公司", business_model_l3="很長。" * 4000)
         messages = build_messages([make_analysis(companies=[giant])], "qq_timmy", NOW)
         for message in messages:
-            self.assertLessEqual(len(message), MAX_MESSAGE_CHARS)
+            self.assertLessEqual(text_length(message), MAX_MESSAGE_CHARS)
 
     def test_header_counts_posts_and_companies(self):
         messages = build_messages(

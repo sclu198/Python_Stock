@@ -1,7 +1,8 @@
-"""把分析結果排版成 LINE 訊息。
+"""把分析結果排版成推播訊息。
 
-LINE 純文字訊息不支援 Markdown，所以用符號與縮排做層次；
-單則訊息上限 5000 字，這裡以貼文為單位切塊再組裝。
+Telegram 與 LINE 的純文字訊息都不吃 Markdown，所以用符號與縮排做層次。
+長度上限由各個 notifier 提供（Telegram 4096、LINE 5000），而且兩邊都是
+以 UTF-16 單位計算——表情符號算兩個——所以這裡也照 UTF-16 算。
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from datetime import datetime
 
 from .models import PostAnalysis
 
-MAX_MESSAGE_CHARS = 4800
+MAX_MESSAGE_CHARS = 3900  # 預設值，實際以 notifier.max_message_chars 為準
 DIVIDER = "──────────────"
 
 SENTIMENT_ICONS = {
@@ -23,6 +24,11 @@ SENTIMENT_ICONS = {
 }
 
 
+def text_length(text: str) -> int:
+    """以 UTF-16 單位計算長度，和 Telegram／LINE 的計法一致。"""
+    return len(text.encode("utf-16-le")) // 2
+
+
 def build_blocks(analyses: list[PostAnalysis], username: str, now: datetime) -> list[str]:
     """回傳一串文字區塊：第 0 塊是總覽，之後每則貼文一塊。"""
     post_blocks = [_format_post(a, idx + 1, len(analyses)) for idx, a in enumerate(analyses)]
@@ -30,16 +36,21 @@ def build_blocks(analyses: list[PostAnalysis], username: str, now: datetime) -> 
     return [header, *post_blocks]
 
 
-def build_messages(analyses: list[PostAnalysis], username: str, now: datetime) -> list[str]:
-    """把區塊組裝成數則 LINE 訊息，每則不超過長度上限。"""
+def build_messages(
+    analyses: list[PostAnalysis],
+    username: str,
+    now: datetime,
+    max_chars: int = MAX_MESSAGE_CHARS,
+) -> list[str]:
+    """把區塊組裝成數則訊息，每則不超過平台的長度上限。"""
     blocks = build_blocks(analyses, username, now)
     messages: list[str] = []
     current = ""
     for block in blocks:
-        for piece in _split_oversized(block):
+        for piece in _split_oversized(block, max_chars):
             if not current:
                 current = piece
-            elif len(current) + len(piece) + 2 <= MAX_MESSAGE_CHARS:
+            elif text_length(current) + text_length(piece) + 2 <= max_chars:
                 current = f"{current}\n\n{piece}"
             else:
                 messages.append(current)
@@ -137,17 +148,17 @@ def _market_label(company) -> str:
     return f"{country}／{exchange}"
 
 
-def _split_oversized(block: str) -> list[str]:
+def _split_oversized(block: str, max_chars: int) -> list[str]:
     """單一區塊超過長度上限時，依行切成多段。"""
-    if len(block) <= MAX_MESSAGE_CHARS:
+    if text_length(block) <= max_chars:
         return [block]
     pieces: list[str] = []
     current = ""
     for line in block.split("\n"):
-        line = line if len(line) <= MAX_MESSAGE_CHARS else line[: MAX_MESSAGE_CHARS - 1] + "…"
+        line = _truncate(line, max_chars)
         if not current:
             current = line
-        elif len(current) + len(line) + 1 <= MAX_MESSAGE_CHARS:
+        elif text_length(current) + text_length(line) + 1 <= max_chars:
             current = f"{current}\n{line}"
         else:
             pieces.append(current)
@@ -155,6 +166,18 @@ def _split_oversized(block: str) -> list[str]:
     if current:
         pieces.append(current)
     return pieces
+
+
+def _truncate(text: str, max_chars: int) -> str:
+    """依 UTF-16 長度截斷，不會切在表情符號中間。"""
+    if text_length(text) <= max_chars:
+        return text
+    result = ""
+    for char in text:
+        if text_length(result) + text_length(char) > max_chars - 1:
+            break
+        result += char
+    return result + "…"
 
 
 def _clip(text: str, limit: int) -> str:

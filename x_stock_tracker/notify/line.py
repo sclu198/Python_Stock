@@ -23,6 +23,7 @@ MAX_RETRIES = 4
 
 class LineNotifier(Notifier):
     name = "line"
+    max_message_chars = 4800
 
     def __init__(self, config):
         self.config = config

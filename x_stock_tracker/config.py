@@ -62,7 +62,9 @@ class Config:
     web_search_max_uses: int = 5
 
     # --- 推播 ---
-    notifier: str = "line"  # line | stdout
+    notifier: str = "telegram"  # telegram | line | stdout
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
     line_channel_access_token: str = ""
     line_to_user_id: str = ""
 
@@ -100,7 +102,9 @@ class Config:
             effort=_env("ANTHROPIC_EFFORT", "high"),
             enable_web_search=_env_bool("ENABLE_WEB_SEARCH", True),
             web_search_max_uses=_env_int("WEB_SEARCH_MAX_USES", 5),
-            notifier=_env("NOTIFIER", "line").lower(),
+            notifier=_env("NOTIFIER", "telegram").lower(),
+            telegram_bot_token=_env("TELEGRAM_BOT_TOKEN"),
+            telegram_chat_id=_env("TELEGRAM_CHAT_ID"),
             line_channel_access_token=_env("LINE_CHANNEL_ACCESS_TOKEN"),
             line_to_user_id=_env("LINE_TO_USER_ID"),
             registry_ttl_hours=_env_int("REGISTRY_TTL_HOURS", 24),
@@ -119,6 +123,13 @@ class Config:
             problems.append(f"X_SOURCE 只接受 api 或 rss，目前是 {self.x_source!r}")
         if not self.anthropic_api_key:
             problems.append("ANTHROPIC_API_KEY 未設定")
+        if self.notifier == "telegram":
+            if not self.telegram_bot_token:
+                problems.append("TELEGRAM_BOT_TOKEN 未設定（跟 Telegram 的 @BotFather 申請）")
+            if not self.telegram_chat_id:
+                problems.append(
+                    "TELEGRAM_CHAT_ID 未設定（執行 python scripts/telegram_get_chat_id.py 取得數字 chat id）"
+                )
         if self.notifier == "line":
             if not self.line_channel_access_token:
                 problems.append("LINE_CHANNEL_ACCESS_TOKEN 未設定")

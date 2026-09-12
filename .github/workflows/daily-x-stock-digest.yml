@@ -34,8 +34,9 @@ jobs:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
           X_RSS_URL: ${{ secrets.X_RSS_URL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-          LINE_TO_USER_ID: ${{ secrets.LINE_TO_USER_ID }}
+          NOTIFIER: ${{ vars.NOTIFIER || 'telegram' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TZ: Asia/Taipei
         run: |
           python -m x_stock_tracker ${{ inputs.dry_run && '--dry-run' || '' }}
