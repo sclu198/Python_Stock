@@ -58,7 +58,8 @@ python -m x_stock_tracker              # 正式執行，推播到 Telegram
 
 - **Telegram 的收件人不能用 @使用者名稱。** Bot API 私訊只接受數字 chat id，
   而且你必須先對自己的 bot 按過 Start；執行
-  `python scripts/telegram_get_chat_id.py` 就會印出來。
+  `python scripts/telegram_get_chat_id.py --token 你的token --save`
+  會一次完成驗證、取 chat id、寫入 `.env` 並發測試訊息。
 - **X 的免費 API 方案不能讀取推文**，需要 Basic 以上方案，或改用
   `X_SOURCE=rss` 走自架的 RSS 鏡像。
 

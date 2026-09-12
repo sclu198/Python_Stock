@@ -25,18 +25,28 @@ Telegram 沒有地區限制，設定也比 LINE 單純，只有兩個值要填�
 
 1. 在 Telegram 搜尋 **@BotFather**，送 `/newbot`。
 2. 依提示取兩個名字：顯示名稱（隨意，例如「股市摘要小幫手」）和
-   使用者名稱（必須以 `bot` 結尾，例如 `sclu_stock_digest_bot`）。
-3. BotFather 會給你一串 token（長得像 `123456789:AAH...`），
-   填進 `.env` 的 `TELEGRAM_BOT_TOKEN`。
-4. **在 Telegram 搜尋你剛建立的 bot，按下 Start**（或隨便傳一句話給它）。
+   使用者名稱（必須以 `bot` 結尾）。BotFather 會給你一串 token，
+   長得像 `123456789:AAH...`。
+3. **在 Telegram 搜尋你剛建立的 bot，按下 Start**（或隨便傳一句話給它）。
    這步不能跳過——Telegram 規定 bot 不能主動私訊沒互動過的人。
-5. 取得 chat id：
+4. 一行指令完成設定：
 
    ```bash
-   python scripts/telegram_get_chat_id.py
+   python scripts/telegram_get_chat_id.py --token 你的token --save
    ```
 
-   它會印出你的數字 chat id，填進 `.env` 的 `TELEGRAM_CHAT_ID`。
+   它會驗證 token、找出你的數字 chat id、把設定寫進 `.env`，
+   並發一則測試訊息到你的 Telegram。收到測試訊息就代表通了。
+
+   token 已經自己填進 `.env` 的話，直接跑
+   `python scripts/telegram_get_chat_id.py --save` 就好；
+   加上 `--no-test` 可以不發測試訊息。
+
+### ⚠️ token 外洩就要重新產生
+
+token 等同於 bot 的密碼，任何人拿到都能控制你的 bot。不小心貼到聊天室、
+截圖或推上 GitHub 的話，到 @BotFather 送 `/revoke` 產一組新的，舊的立刻失效。
+`.env` 已經被 `.gitignore` 排除，正常使用不會進版控。
 
 ### ⚠️ chat id 不能用 @使用者名稱
 
