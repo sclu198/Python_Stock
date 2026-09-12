@@ -1,0 +1,3 @@
+# anthropic 1.x 才有 output_config（結構化輸出）
+anthropic>=1.5.0,<2
+requests>=2.31.0

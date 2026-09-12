@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# 台股名錄快取（每天會重新下載，不需要進版控）
+data/tw_company_registry.json
