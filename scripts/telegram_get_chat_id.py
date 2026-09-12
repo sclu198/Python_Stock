@@ -35,6 +35,7 @@ API_BASE = "https://api.telegram.org"
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="取得 Telegram chat id 並完成推播設定")
     parser.add_argument("--token", default="", help="bot token，省略則讀 .env 的 TELEGRAM_BOT_TOKEN")
+    parser.add_argument("--chat-id", default="", help="直接指定 chat id，跳過自動偵測")
     parser.add_argument("--save", action="store_true", help="把 token 與 chat id 寫進 .env")
     parser.add_argument("--no-test", action="store_true", help="不要發測試訊息")
     return parser
@@ -54,14 +55,19 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(f"✅ token 有效，bot 是 @{bot_name}")
 
-    chats = _find_chats(token, config.http_timeout)
+    if args.chat_id.strip():
+        chats = {args.chat_id.strip(): "手動指定"}
+    else:
+        chats = _find_chats(token, config.http_timeout)
     if chats is None:
         return 1
     if not chats:
         print(
-            "\n⚠️ 還沒收到任何訊息。\n"
-            f"   請在 Telegram 搜尋 @{bot_name}，按下 Start 或隨便傳一句話，再執行一次這個指令。\n"
-            "   （如果剛才已經傳過，可能訊息被先前的 getUpdates 取走了，再傳一則新的即可）"
+            f"\n⚠️ getUpdates 沒有回傳任何對話。\n"
+            f"   1. 請在 Telegram 搜尋 @{bot_name}，按下 Start 或傳一則新訊息，再跑一次\n"
+            f"   2. 訊息可能已被先前的 getUpdates 取走，傳一則「新的」訊息即可\n"
+            f"   3. 仍然不行的話，用 @userinfobot 查出自己的 id，再用\n"
+            f"      --chat-id 你的id 直接指定"
         )
         return 1
 
@@ -100,8 +106,10 @@ def _find_chats(token: str, timeout: int) -> dict[str, str] | None:
     body = _call(f"{API_BASE}/bot{token}/getUpdates", timeout)
     if body is None:
         return None
+    updates = body.get("result", [])
+    print(f"getUpdates 回傳 {len(updates)} 筆更新")
     chats: dict[str, str] = {}
-    for update in body.get("result", []):
+    for update in updates:
         message = update.get("message") or update.get("channel_post") or {}
         chat = message.get("chat", {})
         chat_id = chat.get("id")
@@ -159,6 +167,12 @@ def _call(url: str, timeout: int) -> dict | None:
         print(f"❌ Telegram 回應失敗（{resp.status_code}）：{_description(resp)}")
         if resp.status_code == 401:
             print("   token 不對，請跟 @BotFather 重新確認，或用 /revoke 產一組新的。")
+        if resp.status_code == 409:
+            print(
+                "   這個 bot 設了 webhook，getUpdates 會被擋住。\n"
+                "   在瀏覽器開啟下面網址移除後再跑一次：\n"
+                f"   {API_BASE}/bot<你的token>/deleteWebhook"
+            )
         return None
     return body
 
