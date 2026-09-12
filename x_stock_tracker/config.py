@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import locale
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -10,12 +11,27 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 
 
+def read_text_tolerant(path: Path) -> str:
+    """讀文字檔，UTF-8 讀不動就退回系統編碼。
+
+    Windows 的記事本之類的編輯器可能把 .env 存成 cp950，硬要 UTF-8 會直接
+    丟 UnicodeDecodeError，訊息又看不出是編碼問題，所以這裡多留一條退路。
+    """
+    data = path.read_bytes()
+    for encoding in ("utf-8-sig", "utf-8", locale.getpreferredencoding(False)):
+        try:
+            return data.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
 def load_dotenv(path: Path | None = None) -> None:
     """把 .env 的內容讀進 os.environ，已存在的環境變數不覆蓋。"""
     env_path = path or PROJECT_ROOT / ".env"
     if not env_path.is_file():
         return
-    for raw in env_path.read_text(encoding="utf-8").splitlines():
+    for raw in read_text_tolerant(env_path).splitlines():
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue

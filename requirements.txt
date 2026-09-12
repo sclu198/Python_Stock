@@ -1,3 +1,5 @@
-# anthropic 1.x 才有 output_config（結構化輸出）
+# Requires Python 3.10 or newer (the anthropic 1.x SDK needs >=3.10).
+# Keep this file ASCII-only: pip reads it with the system locale encoding,
+# so non-ASCII comments break installs on non-UTF-8 Windows consoles.
 anthropic>=1.5.0,<2
 requests>=2.31.0

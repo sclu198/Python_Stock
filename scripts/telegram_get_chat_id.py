@@ -26,7 +26,8 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from x_stock_tracker.config import PROJECT_ROOT, Config  # noqa: E402
+from x_stock_tracker.config import PROJECT_ROOT, Config, read_text_tolerant  # noqa: E402
+from x_stock_tracker.console import check_python_version, setup_console  # noqa: E402
 
 API_BASE = "https://api.telegram.org"
 
@@ -40,6 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    setup_console()
     args = build_parser().parse_args(argv)
     config = Config.from_env()
     token = args.token.strip() or config.telegram_bot_token
@@ -80,6 +82,9 @@ def main(argv: list[str] | None = None) -> int:
         print("\n把這些填進 .env（或加上 --save 讓腳本直接寫入）：")
         print(f"NOTIFIER=telegram\nTELEGRAM_BOT_TOKEN={token}\nTELEGRAM_CHAT_ID={chat_id}")
 
+    warning = check_python_version()
+    if warning:
+        print(f"\n⚠️ 推播設定已完成，但接下來的每日摘要跑不起來：\n  {warning}")
     print("\n下一步：python -m x_stock_tracker --check")
     return 0
 
@@ -130,9 +135,9 @@ def _save_env(values: dict[str, str], env_path: Path | None = None) -> None:
     path = env_path or PROJECT_ROOT / ".env"
     if not path.is_file():
         example = PROJECT_ROOT / ".env.example"
-        path.write_text(example.read_text(encoding="utf-8") if example.is_file() else "", encoding="utf-8")
+        path.write_text(read_text_tolerant(example) if example.is_file() else "", encoding="utf-8")
 
-    lines = path.read_text(encoding="utf-8").splitlines()
+    lines = read_text_tolerant(path).splitlines()
     remaining = dict(values)
     for index, line in enumerate(lines):
         key = line.split("=", 1)[0].strip()

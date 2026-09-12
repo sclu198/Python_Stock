@@ -6,9 +6,20 @@
 
 ## 0. 先安裝
 
+**需要 Python 3.10 以上**（建議 3.11 或更新）。分析用的 `anthropic` 套件本身
+就要求 3.10+，Python 3.9 裝不起來。先確認版本：
+
+```bash
+python --version
+```
+
+版本太舊的話到 <https://www.python.org/downloads/> 安裝新版，
+Windows 安裝時記得勾選 **Add python.exe to PATH**。
+
 ```bash
 git clone https://github.com/sclu198/Python_Stock.git
 cd Python_Stock
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 cp .env.example .env      # Windows: copy .env.example .env
 ```
@@ -168,6 +179,9 @@ python -m x_stock_tracker
 
 | 訊息 | 原因與處理 |
 | --- | --- |
+| `UnicodeDecodeError: 'cp950' codec can't decode byte`（跑 pip 時） | pip 太舊。先 `python -m pip install --upgrade pip` 再重跑 |
+| `ModuleNotFoundError: No module named 'requests'` | 上一步的 `pip install -r requirements.txt` 沒成功，先把它跑過 |
+| `ERROR: Package requires a different Python` | Python 版本低於 3.10，請升級 |
 | `Telegram 回傳「chat not found」` | chat id 填錯，或還沒對 bot 按過 Start |
 | `TELEGRAM_CHAT_ID 格式不對` | 填成 `@SCLU0215` 了，私訊要用數字 chat id |
 | `Telegram 回傳 401` | bot token 不對，跟 @BotFather 重新確認 |

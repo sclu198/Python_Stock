@@ -15,6 +15,7 @@ from datetime import datetime
 
 from .analysis import PostAnalyzer
 from .config import Config
+from .console import check_python_version, setup_console
 from .notify import NotifyError, TelegramNotifier, build_notifier
 from .report import build_empty_message, build_messages
 from .sources import SourceError, build_source
@@ -39,11 +40,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    setup_console()
     args = build_parser().parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+
+    version_problem = check_python_version()
+    if version_problem:
+        log.error("%s", version_problem)
+        return 2
 
     config = Config.from_env()
     if args.dry_run and config.notifier != "stdout":

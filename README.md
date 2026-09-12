@@ -43,6 +43,8 @@
 
 ### 快速開始
 
+需要 **Python 3.10 以上**（`anthropic` 套件的要求），建議 3.11+。
+
 ```bash
 pip install -r requirements.txt
 cp .env.example .env     # 填入 X、Claude、Telegram 三組金鑰
