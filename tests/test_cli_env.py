@@ -25,11 +25,15 @@ class TestWithoutAnthropic(unittest.TestCase):
             self.assertTrue(callable(cli.main))
 
     def test_check_runs_without_anthropic(self):
-        # 設定不完整會回 2，重點是沒有因為 import 就崩潰
+        # 重點是沒有因為 import anthropic 就崩潰；名錄下載要 mock 掉不連外網
         with mock.patch.dict(sys.modules, {"anthropic": None}):
             from x_stock_tracker import cli
+            from x_stock_tracker.tw_market import RegistryError
 
-            with mock.patch.dict("os.environ", {"NOTIFIER": "stdout", "X_SOURCE": "rss"}, clear=False):
+            with mock.patch.dict("os.environ", {"NOTIFIER": "stdout", "X_SOURCE": "rss"}, clear=False), \
+                 mock.patch.object(
+                     cli.TwCompanyRegistry, "load", side_effect=RegistryError("測試不連網")
+                 ):
                 code = cli.main(["--check"])
         self.assertIn(code, (0, 1, 2))
 

@@ -253,17 +253,37 @@ def _brief(exc: Exception, limit: int = 120) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
+# 櫃買中心偶爾會直接切斷非瀏覽器的連線（ConnectionResetError 10054），
+# 用一般瀏覽器的 User-Agent 並重試幾次可以大幅提高成功率。
+BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+    "Connection": "keep-alive",
+}
+FETCH_ATTEMPTS = 3
+
+
 def _fetch_json(url: str, timeout: int) -> list[dict[str, Any]]:
-    try:
-        resp = requests.get(
-            url, timeout=timeout, headers={"User-Agent": "x-stock-tracker/0.1", "Accept": "application/json"}
-        )
-        resp.raise_for_status()
-        data = resp.json()
-    except requests.RequestException as exc:
-        raise RegistryError(str(exc)) from exc
-    except ValueError as exc:
-        raise RegistryError(f"回應不是合法 JSON：{exc}") from exc
+    last_error = ""
+    for attempt in range(FETCH_ATTEMPTS):
+        try:
+            resp = requests.get(url, timeout=timeout, headers=BROWSER_HEADERS)
+            resp.raise_for_status()
+            data = resp.json()
+            break
+        except requests.RequestException as exc:
+            last_error = str(exc)
+            if attempt == FETCH_ATTEMPTS - 1:
+                raise RegistryError(last_error) from exc
+            wait = 2 ** attempt
+            log.warning("下載失敗，%d 秒後重試（第 %d 次）：%s", wait, attempt + 1, _brief(exc, 80))
+            time.sleep(wait)
+        except ValueError as exc:
+            raise RegistryError(f"回應不是合法 JSON：{exc}") from exc
 
     if isinstance(data, dict):
         for key in ("data", "result", "items"):

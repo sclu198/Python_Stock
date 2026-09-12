@@ -143,7 +143,21 @@ def run_check(config: Config) -> int:
 
     try:
         registry = TwCompanyRegistry.load(config, force_refresh=True)
-        log.info("✅ 台股名錄：%s，共 %d 家", registry.counts(), len(registry))
+        counts = registry.counts()
+        labels = {"listed": "上市", "otc": "上櫃", "public": "公開發行／興櫃"}
+        missing = [labels[key] for key in labels if not counts.get(key)]
+        if missing:
+            log.warning(
+                "⚠️ 台股名錄缺少：%s —— 這類公司會被誤判為「未上市」，請稍後重跑 --check",
+                "、".join(missing),
+            )
+            ok = False
+        log.info(
+            "%s 台股名錄：%s，共 %d 家",
+            "⚠️" if missing else "✅",
+            {labels[k]: v for k, v in counts.items()},
+            len(registry),
+        )
         for probe in ("台積電", "聯發科", "2330"):
             hit = registry.lookup(probe)
             log.info("   查詢 %s -> %s", probe, f"{hit.code} {hit.name}" if hit else "查無")
