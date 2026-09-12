@@ -208,7 +208,7 @@ class TwCompanyRegistry:
                 rows = _fetch_json(url, config.http_timeout)
             except RegistryError as exc:
                 log.warning("下載 %s 名錄失敗：%s", source, exc)
-                failures.append(f"{source}: {exc}")
+                failures.append(f"{source}: {_brief(exc)}")
                 continue
             parsed = parse_rows(rows, source)
             log.info("%s 名錄取得 %d 家公司（%s）", source, len(parsed), url)
@@ -245,6 +245,12 @@ class TwCompanyRegistry:
             "companies": [company.__dict__ for company in self.companies],
         }
         path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
+def _brief(exc: Exception, limit: int = 120) -> str:
+    """連線錯誤訊息常常很長，摘要成一行方便閱讀。"""
+    text = " ".join(str(exc).split())
+    return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
 def _fetch_json(url: str, timeout: int) -> list[dict[str, Any]]:

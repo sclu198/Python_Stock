@@ -55,15 +55,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run and config.notifier != "stdout":
         config.notifier = "stdout"
 
+    if args.check:
+        return run_check(config)
+
     problems = config.validate()
     if problems:
         for problem in problems:
             log.error("設定不完整：%s", problem)
         log.error("請參考 .env.example 與 docs/SETUP.md 補齊設定")
         return 2
-
-    if args.check:
-        return run_check(config)
 
     state = StateStore(config.state_path)
 
@@ -131,8 +131,15 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def run_check(config: Config) -> int:
-    """檢查三個台股名錄、貼文來源與推播設定是否可用。"""
-    ok = True
+    """逐項檢查設定與連線。
+
+    設定沒填齊也照樣執行：這支指令就是設定過程中用來看「還差什麼」的，
+    缺什麼就標示並略過該項，不會整個拒絕執行。
+    """
+    problems = config.validate()
+    ok = not problems
+    for problem in problems:
+        log.warning("⚠️ 尚未完成：%s", problem)
 
     try:
         registry = TwCompanyRegistry.load(config, force_refresh=True)
@@ -144,20 +151,28 @@ def run_check(config: Config) -> int:
         log.error("❌ 台股名錄：%s", exc)
         ok = False
 
-    try:
-        posts = build_source(config, StateStore(config.state_path)).fetch()
-        log.info("✅ 貼文來源（%s）：取得 %d 則", config.x_source, len(posts))
-    except SourceError as exc:
-        log.error("❌ 貼文來源：%s", exc)
-        ok = False
+    if (config.x_source == "api" and config.x_bearer_token) or (
+        config.x_source == "rss" and config.x_rss_url
+    ):
+        try:
+            posts = build_source(config, StateStore(config.state_path)).fetch()
+            log.info("✅ 貼文來源（%s）：取得 %d 則", config.x_source, len(posts))
+        except SourceError as exc:
+            log.error("❌ 貼文來源：%s", exc)
+            ok = False
+    else:
+        log.warning("⏭ 貼文來源：尚未設定，略過")
 
     if config.notifier == "telegram":
-        try:
-            bot_name = TelegramNotifier(config).verify()
-            log.info("✅ Telegram：token 有效，bot 是 @%s", bot_name)
-        except NotifyError as exc:
-            log.error("❌ Telegram：%s", exc)
-            ok = False
+        if config.telegram_bot_token:
+            try:
+                bot_name = TelegramNotifier(config).verify()
+                log.info("✅ Telegram：token 有效，bot 是 @%s", bot_name)
+            except NotifyError as exc:
+                log.error("❌ Telegram：%s", exc)
+                ok = False
+        else:
+            log.warning("⏭ Telegram：尚未設定 token，略過")
     elif config.notifier == "line":
         if config.line_to_user_id.startswith("U"):
             log.info("✅ LINE 設定：userId 格式正確")
@@ -165,7 +180,15 @@ def run_check(config: Config) -> int:
             log.error("❌ LINE 設定：LINE_TO_USER_ID 必須是 U 開頭的 userId，不是 LINE ID")
             ok = False
 
-    log.info("Anthropic 模型：%s（effort=%s，web search=%s）", config.model, config.effort, config.enable_web_search)
+    if config.anthropic_api_key:
+        log.info(
+            "✅ Anthropic：金鑰已設定，模型 %s（effort=%s，web search=%s）",
+            config.model, config.effort, config.enable_web_search,
+        )
+    else:
+        log.warning("⏭ Anthropic：尚未設定 ANTHROPIC_API_KEY，略過")
+
+    log.info("檢查結果：%s", "全部就緒，可以執行 --dry-run" if ok else "還有項目未完成，見上面的 ⚠️ 與 ❌")
     return 0 if ok else 1
 
 
